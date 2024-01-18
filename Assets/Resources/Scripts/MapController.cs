@@ -12,6 +12,16 @@ public class MapController : MonoBehaviour
     public GameObject currentChunk;
     PlayerMovement pm;
 
+    [Header("Optimization")]
+    public List<GameObject> spawnedChunks;
+    GameObject latestChunk;
+    public float maxOpDist; //Must be greater than the length and width of the tilemap
+    float opDist;
+    float optimizerCooldown;
+    public float optimizerCooldownDur;
+
+
+
     void Start()
     {
         pm = FindObjectOfType<PlayerMovement>();
@@ -20,18 +30,11 @@ public class MapController : MonoBehaviour
     void Update()
     {
         ChunkChecker();
+        ChunkOptimzer();
     }
 
-   void ChunkChecker()
+    void ChunkChecker()
     {
-        Debug.Log("ChunkChecker called");
-    
-        if (currentChunk == null)
-        {
-        Debug.Log("currentChunk is null");
-        return;
-        }
-
         if(!currentChunk)
         {
             return;
@@ -39,12 +42,9 @@ public class MapController : MonoBehaviour
 
         if (pm.moveDir.x > 0 && pm.moveDir.y == 0)
         {
-             Debug.Log("Checking right side");
-
             if (!Physics2D.OverlapCircle(currentChunk.transform.Find("Right").position, checkerRadius, terrainMask))
             {
                 noTerrainPosition = currentChunk.transform.Find("Right").position;  //Right
-                Debug.Log("SpawnChunk - Right");
                 SpawnChunk();
             }
         }
@@ -104,13 +104,39 @@ public class MapController : MonoBehaviour
                 SpawnChunk();
             }
         }
-
-        Debug.Log("ChunkChecker completed");
     }
 
     void SpawnChunk()
     {
         int rand = Random.Range(0, terrainChunks.Count);
-        Instantiate(terrainChunks[rand], noTerrainPosition, Quaternion.identity);
+        latestChunk = Instantiate(terrainChunks[rand], noTerrainPosition, Quaternion.identity);
+        spawnedChunks.Add(latestChunk);
+    }
+
+    void ChunkOptimzer()
+    {
+        optimizerCooldown -= Time.deltaTime;
+
+        if (optimizerCooldown <= 0f)
+        {
+            optimizerCooldown = optimizerCooldownDur;   //Check every 1 second to save cost, change this value to lower to check more times
+        }
+        else
+        {
+            return;
+        }
+
+        foreach (GameObject chunk in spawnedChunks)
+        {
+            opDist = Vector3.Distance(player.transform.position, chunk.transform.position);
+            if (opDist > maxOpDist)
+            {
+                chunk.SetActive(false);
+            }
+            else
+            {
+                chunk.SetActive(true);
+            }
+        }
     }
 }
